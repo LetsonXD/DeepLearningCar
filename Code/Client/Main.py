@@ -224,6 +224,28 @@ class mywindow(QMainWindow,Ui_Client):
     def levelThreeAI(self, image):
         image = self.level_three_ai.follow_lane(self)
         return image
+
+    def drive(self, speed = 1500):
+
+        self.back_wheels.speed = speed
+        i = 0
+        while self.camera.isOpened():
+            _, image_lane = self.camera.read()
+            image_objs = image_lane.copy()
+            i += 1
+            self.video_orig.write(image_lane)
+
+            image_objs = self.process_objects_on_road(image_objs)
+            self.video_objs.write(image_objs)
+            show_image('Detected Objects', image_objs)
+
+            image_lane = self.follow_lane(image_lane)
+            self.video_lane.write(image_lane)
+            show_image('Lane Lines', image_lane)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                self.cleanup()
+                break
         
             
 if __name__ == '__main__':
