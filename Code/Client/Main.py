@@ -14,6 +14,7 @@ from PIL import Image
 from Command import COMMAND as cmd
 from Thread import *
 from Client_Ui import Ui_Client
+from levelThreeAI import levelThreeAI
 from Video import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import *
@@ -44,6 +45,8 @@ class mywindow(QMainWindow,Ui_Client):
         self.HSlider_Servo1.valueChanged.connect(self.Level_Change)
         self.label_Video.setAlignment(QtCore.Qt.AlignCenter|QtCore.Qt.AlignVCenter)
         self.label_Model.setPixmap(QPixmap('./model.jpg').scaled(113, 165, QtCore.Qt.KeepAspectRatio))
+        self.level_three_ai = levelThreeAI(self)
+        
         self.Btn_ForWard.pressed.connect(self.on_btn_ForWard)
         self.Btn_ForWard.released.connect(self.on_btn_Stop)
 
@@ -217,6 +220,10 @@ class mywindow(QMainWindow,Ui_Client):
         except Exception as e:
             print(e)
         self.TCP.video_Flag=True
+
+    def levelThreeAI(self, image):
+        image = self.level_three_ai.follow_lane(self)
+        return image
         
             
 if __name__ == '__main__':
