@@ -84,29 +84,6 @@ def detect_edges(frame):
 
     return edges
 
-def detect_edges_old(frame):
-    # filter for blue lane lines
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    show_image("hsv", hsv)
-    for i in range(16):
-        lower_blue = np.array([30, 16 * i, 0])
-        upper_blue = np.array([150, 255, 255])
-        mask = cv2.inRange(hsv, lower_blue, upper_blue)
-        show_image("blue mask Sat=%s" % (16* i), mask)
-
-
-    #for i in range(16):
-        #lower_blue = np.array([16 * i, 40, 50])
-        #upper_blue = np.array([150, 255, 255])
-        #mask = cv2.inRange(hsv, lower_blue, upper_blue)
-       # show_image("blue mask hue=%s" % (16* i), mask)
-
-        # detect edges
-    edges = cv2.Canny(mask, 200, 400)
-
-    return edges
-
-
 def region_of_interest(canny):
     height, width = canny.shape
     mask = np.zeros_like(canny)
@@ -251,6 +228,7 @@ def deg_to_revs(curr_steering_angle):
         right_wheel = 1500
 
     return left_wheel, right_wheel
+    
 ############################
 # Utility Functions
 ############################
@@ -357,7 +335,7 @@ def test_video(video_file):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
-    test_video('/home/pi/DeepPiCar/driver/data/tmp/video01')
+    #test_video('/home/pi/DeepPiCar/driver/data/tmp/video01')
     #test_photo('/home/pi/DeepPiCar/driver/data/video/car_video_190427_110320_073.png')
-    #test_photo(sys.argv[1])
+    test_photo('/home/pi/Documents/DeepCar/DeepLearningCar/Code/Client/ai.png')
     #test_video(sys.argv[1])

@@ -5,6 +5,7 @@ import cv2
 import socket
 import os
 import io
+import datetime
 import time
 import imghdr
 import sys
@@ -14,7 +15,7 @@ from PIL import Image
 from Command import COMMAND as cmd
 from Thread import *
 from Client_Ui import Ui_Client
-from levelThreeAI import levelThreeAI
+from levelThreeAI import levelThreeAI, show_image
 from Video import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import *
@@ -42,10 +43,12 @@ class mywindow(QMainWindow,Ui_Client):
         self.HSlider_Servo1.setMinimum(1)
         self.HSlider_Servo1.setMaximum(5)
         self.HSlider_Servo1.setSingleStep(2)
+        self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
         self.HSlider_Servo1.valueChanged.connect(self.Level_Change)
         self.label_Video.setAlignment(QtCore.Qt.AlignCenter|QtCore.Qt.AlignVCenter)
         self.label_Model.setPixmap(QPixmap('./model.jpg').scaled(113, 165, QtCore.Qt.KeepAspectRatio))
-        self.level_three_ai = levelThreeAI(self)
+        self.level_three_ai = levelThreeAI()
+
         
         self.Btn_ForWard.pressed.connect(self.on_btn_ForWard)
         self.Btn_ForWard.released.connect(self.on_btn_Stop)
@@ -66,6 +69,7 @@ class mywindow(QMainWindow,Ui_Client):
         self.Window_Close.clicked.connect(self.close)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.time)
+        
     def mousePressEvent(self, event):
         if event.button()==Qt.LeftButton:
             self.m_drag=True
@@ -96,8 +100,8 @@ class mywindow(QMainWindow,Ui_Client):
         Turn_Right=self.intervalChar+str(1500)+self.intervalChar+str(1500)+self.intervalChar+str(-1500)+self.intervalChar+str(-1500)+self.endChar
         self.TCP.sendData(cmd.CMD_MOTOR+Turn_Right)
 
-    def Level_Change(self):#Up or Down
-        self.level=self.HSlider_Servo1.value()
+    def Level_Change(self):
+        self.level = self.HSlider_Servo1.value()
         self.label_Level.setText("%d"%self.level)
         
     def on_btn_Stop(self):
@@ -137,6 +141,7 @@ class mywindow(QMainWindow,Ui_Client):
                 stop_thread(self.recv)
                 stop_thread(self.power)
                 stop_thread(self.streaming)
+                stop_thread(self.levelthree)
             except:
                 pass
             self.TCP.StopTcpcClient()
@@ -147,11 +152,13 @@ class mywindow(QMainWindow,Ui_Client):
         try:
             stop_thread(self.recv)
             stop_thread(self.streaming)
+            stop_thread(self.levelthree)
         except:
             pass
         self.TCP.StopTcpcClient()
         try:
             os.remove("video.jpg")
+            os.remove("ai.jpg")
         except:
             pass
         QCoreApplication.instance().quit()
@@ -186,9 +193,6 @@ class mywindow(QMainWindow,Ui_Client):
                         self.Ultrasonic.setText('Obstruction:%s cm'%Massage[1])
                     elif cmd.CMD_LIGHT in Massage:
                         self.Light.setText("Left:"+Massage[1]+'V'+' '+"Right:"+Massage[2]+'V')
-                    elif cmd. CMD_POWER in Massage:
-                        percent_power=int((float(Massage[1])-7)/1.40*100)
-                        self.progress_Power.setValue(percent_power) 
 
     def is_valid_jpg(self,jpg_file):
         try:
@@ -215,39 +219,32 @@ class mywindow(QMainWindow,Ui_Client):
     def time(self):
         self.TCP.video_Flag=False
         try:
-            if  self.is_valid_jpg('video.jpg'):
+            if  self.is_valid_jpg('video.jpg') and self.HSlider_Servo1.value() != 3:
                 self.label_Video.setPixmap(QPixmap('video.jpg').scaled(661, 661, QtCore.Qt.KeepAspectRatio))
+                frame = cv2.imread('ai.png')
+                image_lane = self.levelThreeAI(frame)
+                cv2.imshow('header', image_lane)
         except Exception as e:
             print(e)
         self.TCP.video_Flag=True
 
     def levelThreeAI(self, image):
-        image = self.level_three_ai.follow_lane(self)
+        image = self.level_three_ai.follow_lane(image)
         return image
 
-    def drive(self, speed = 1500):
 
-        self.back_wheels.speed = speed
-        i = 0
-        while self.camera.isOpened():
-            _, image_lane = self.camera.read()
-            image_objs = image_lane.copy()
-            i += 1
-            self.video_orig.write(image_lane)
+    def show_image(title, frame, show = True):
+        if show:
+            cv2.imshow(title, frame)
 
-            image_objs = self.process_objects_on_road(image_objs)
-            self.video_objs.write(image_objs)
-            show_image('Detected Objects', image_objs)
+    def cleanup(self):
+        self.on_btn_Stop
+        self.cap.release()
+        self.video_orig.release()
 
-            image_lane = self.follow_lane(image_lane)
-            self.video_lane.write(image_lane)
-            show_image('Lane Lines', image_lane)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                self.cleanup()
-                break
         
-            
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     myshow=mywindow()
