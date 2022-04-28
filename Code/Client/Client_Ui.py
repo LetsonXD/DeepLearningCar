@@ -1,11 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Form implementation generated from reading ui file 'C:\Users\Freenove\Desktop\树莓派四轮车项目\四轮车（python3+pyqt5）\Client_Ui.ui'
-#
-# Created by: PyQt5 UI code generator 5.11.3
-#
-# WARNING! All changes made in this file will be lost!
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 class Ui_Client(object):
@@ -243,7 +235,7 @@ class Ui_Client(object):
         self.Btn_Turn_Right.setText(_translate("Client", "Turn Right"))
         self.Btn_Video.setText(_translate("Client", "Open Video"))
         self.Window_Close.setText(_translate("Client", "x"))
-        self.IP.setText(_translate("Client", "IP Address"))
+        self.IP.setText(_translate("Client", "192.168.1.151"))
         self.Btn_Connect.setText(_translate("Client", "Connect"))
         self.Window_Min.setText(_translate("Client", "-"))
         self.label_Level.setText(_translate("Client", "1"))

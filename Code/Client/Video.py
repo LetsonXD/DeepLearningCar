@@ -7,14 +7,11 @@ import io
 import sys
 import struct
 from PIL import Image
-from multiprocessing import Process
-from Command import COMMAND as cmd
 
 class VideoStreaming:
     def __init__(self):
         self.face_cascade = cv2.CascadeClassifier(r'haarcascade_frontalface_default.xml')
         self.video_Flag=True
-        self.ai_Flag=True
         self.connect_Flag=False
         self.face_x=0
         self.face_y=0
@@ -85,7 +82,7 @@ class VideoStreaming:
             self.connect_Flag=True
             print ("Connecttion Successful !")
         except Exception as e:
-            print ("Connect to server Faild!: Server IP is right? Server is opend?")
+            print ("Connect to server Faild!: Server IP is right? Server is opened?")
             self.connect_Flag=False
 
 if __name__ == '__main__':

@@ -12,15 +12,19 @@ import sys
 from threading import Timer
 from threading import Thread
 from PIL import Image
+from PIL import ImageFile
 from Command import COMMAND as cmd
 from Thread import *
 from Client_Ui import Ui_Client
-from levelThreeAI import levelThreeAI, show_image
+from levelThreeAI import levelThreeAI
 from Video import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import * 
+
+ImageFile.LOAD_TRUNCATED_IMAGES=True
+
 class mywindow(QMainWindow,Ui_Client):
     def __init__(self):
         global timer
@@ -100,13 +104,13 @@ class mywindow(QMainWindow,Ui_Client):
         Turn_Right=self.intervalChar+str(1500)+self.intervalChar+str(1500)+self.intervalChar+str(-1500)+self.intervalChar+str(-1500)+self.endChar
         self.TCP.sendData(cmd.CMD_MOTOR+Turn_Right)
 
-    def Level_Change(self):
-        self.level = self.HSlider_Servo1.value()
-        self.label_Level.setText("%d"%self.level)
-        
     def on_btn_Stop(self):
         Stop=self.intervalChar+str(0)+self.intervalChar+str(0)+self.intervalChar+str(0)+self.intervalChar+str(0)+self.endChar
         self.TCP.sendData(cmd.CMD_MOTOR+Stop)
+        
+    def Level_Change(self):
+        self.level = self.HSlider_Servo1.value()
+        self.label_Level.setText("%d"%self.level)
 
     def on_btn_video(self):
         if self.Btn_Video.text()=='Open Video':
@@ -141,7 +145,6 @@ class mywindow(QMainWindow,Ui_Client):
                 stop_thread(self.recv)
                 stop_thread(self.power)
                 stop_thread(self.streaming)
-                stop_thread(self.levelthree)
             except:
                 pass
             self.TCP.StopTcpcClient()
@@ -152,13 +155,12 @@ class mywindow(QMainWindow,Ui_Client):
         try:
             stop_thread(self.recv)
             stop_thread(self.streaming)
-            stop_thread(self.levelthree)
         except:
             pass
         self.TCP.StopTcpcClient()
         try:
             os.remove("video.jpg")
-            os.remove("ai.jpg")
+            os.remove("ai.png")
         except:
             pass
         QCoreApplication.instance().quit()
@@ -187,12 +189,6 @@ class mywindow(QMainWindow,Ui_Client):
                     if(cmdArray[-1] != ""):
                         restCmd=cmdArray[-1]
                         cmdArray=cmdArray[:-1]
-                for oneCmd in cmdArray:
-                    Massage=oneCmd.split("#")
-                    if cmd.CMD_SONIC in Massage:
-                        self.Ultrasonic.setText('Obstruction:%s cm'%Massage[1])
-                    elif cmd.CMD_LIGHT in Massage:
-                        self.Light.setText("Left:"+Massage[1]+'V'+' '+"Right:"+Massage[2]+'V')
 
     def is_valid_jpg(self,jpg_file):
         try:
@@ -219,23 +215,26 @@ class mywindow(QMainWindow,Ui_Client):
     def time(self):
         self.TCP.video_Flag=False
         try:
-            if  self.is_valid_jpg('video.jpg') and self.HSlider_Servo1.value() != 3:
+            if  self.is_valid_jpg('video.jpg'):
                 self.label_Video.setPixmap(QPixmap('video.jpg').scaled(661, 661, QtCore.Qt.KeepAspectRatio))
-                frame = cv2.imread('ai.png')
-                image_lane = self.levelThreeAI(frame)
-                cv2.imshow('header', image_lane)
+            if self.HSlider_Servo1.value() == 3:
+                frame = Image.open('ai.png')
+                frame = np.array(frame)
+                if len(frame.shape) == 3 and frame.shape[2] == 4:
+                    frame = frame[:, :, : 3]
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                if np.shape(frame) != ():
+                    image_lane, command = self.levelThreeAI(frame)
+                    cv2.imshow('header', image_lane)
+                    #self.TCP.sendData(command)
+
         except Exception as e:
             print(e)
         self.TCP.video_Flag=True
 
     def levelThreeAI(self, image):
-        image = self.level_three_ai.follow_lane(image)
-        return image
-
-
-    def show_image(title, frame, show = True):
-        if show:
-            cv2.imshow(title, frame)
+        image, command = self.level_three_ai.follow_lane(image)
+        return image, command
 
     def cleanup(self):
         self.on_btn_Stop

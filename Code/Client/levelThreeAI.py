@@ -7,26 +7,26 @@ import math
 import datetime
 import sys
 
-_SHOW_IMAGE = False
+_SHOW_IMAGE = True
+_SPEED = 700
 
 
 class levelThreeAI(object):
 
-    def __init__(self, TCP=None):
+    def __init__(self):
         logging.info('Creating level three A.I...')
-        self.TCP = TCP
         self.curr_steering_angle = 90
-        self.left_wheel = 1500
-        self.right_wheel = 1500
+        self.left_wheel = _SPEED
+        self.right_wheel = _SPEED
 
     def follow_lane(self, frame):
         # Main entry point of the lane follower
         show_image("orig", frame)
 
         lane_lines, frame = detect_lane(frame)
-        final_frame = self.steer(frame, lane_lines)
+        final_frame, command = self.steer(frame, lane_lines)
 
-        return final_frame
+        return final_frame, command
 
     def steer(self, frame, lane_lines):
         logging.debug('steering...')
@@ -35,16 +35,14 @@ class levelThreeAI(object):
             return frame
 
         new_steering_angle = compute_steering_angle(frame, lane_lines)
-        self.curr_steering_angle = stabilize_steering_angle(self.curr_steering_angle, new_steering_angle, len(lane_lines))
-        self.left_wheel, self.right_wheel = deg_to_revs(self.curr_steering_angle)
-        direction = '#'+ str(self.left_wheel)+'#'+str(1500)+'#'+str(self.right_wheel)+'#'+str(1500)+'\n'
+        self.left_wheel, self.right_wheel = deg_to_revs(new_steering_angle)
+        direction = '#'+ str(self.left_wheel)+'#'+str(self.left_wheel)+'#'+str(self.right_wheel)+'#'+str(self.right_wheel)+'\n'
 
-        if self.TCP is not None:
-            self.TCP.sendData(cmd.CMD_MOTOR + direction)
-        curr_heading_image = display_heading_line(frame, self.curr_steering_angle)
+        command = cmd.CMD_MOTOR + direction
+        curr_heading_image = display_heading_line(frame, new_steering_angle)
         show_image("heading", curr_heading_image)
 
-        return curr_heading_image
+        return curr_heading_image, command
 
 
 ############################
@@ -67,8 +65,7 @@ def detect_lane(frame):
     lane_lines_image = display_lines(frame, lane_lines)
     show_image("lane lines", lane_lines_image)
 
-    return lane_lines, lane_lines_image
-
+    return lane_lines, lane_lines_image, 
 
 def detect_edges(frame):
     # filter for blue lane lines
@@ -182,7 +179,7 @@ def compute_steering_angle(frame, lane_lines):
     else:
         _, _, left_x2, _ = lane_lines[0][0]
         _, _, right_x2, _ = lane_lines[1][0]
-        camera_mid_offset_percent = 0.02 # 0.0 means car pointing to center, -0.03: car is centered to left, +0.03 means car pointing to right
+        camera_mid_offset_percent = 0 # 0.0 means car pointing to center, -0.03: car is centered to left, +0.03 means car pointing to right
         mid = int(width / 2 * (1 + camera_mid_offset_percent))
         x_offset = (left_x2 + right_x2) / 2 - mid
 
@@ -196,38 +193,19 @@ def compute_steering_angle(frame, lane_lines):
     logging.debug('new steering angle: %s' % steering_angle)
     return steering_angle
 
-
-def stabilize_steering_angle(curr_steering_angle, new_steering_angle, num_of_lane_lines, max_angle_deviation_two_lines=5, max_angle_deviation_one_lane=1):
-    """
-    Using last steering angle to stabilize the steering angle
-    This can be improved to use last N angles, etc
-    if new angle is too different from current angle, only turn by max_angle_deviation degrees
-    """
-    if num_of_lane_lines == 2 :
-        # if both lane lines detected, then we can deviate more
-        max_angle_deviation = max_angle_deviation_two_lines
-    else :
-        # if only one lane detected, don't deviate too much
-        max_angle_deviation = max_angle_deviation_one_lane
-    
-    angle_deviation = new_steering_angle - curr_steering_angle
-    if abs(angle_deviation) > max_angle_deviation:
-        stabilized_steering_angle = int(curr_steering_angle
-                                        + max_angle_deviation * angle_deviation / abs(angle_deviation))
-    else:
-        stabilized_steering_angle = new_steering_angle
-    logging.info('Proposed angle: %s, stabilized angle: %s' % (new_steering_angle, stabilized_steering_angle))
-    return stabilized_steering_angle
-
 def deg_to_revs(curr_steering_angle):
     if curr_steering_angle > 90:
-        right_wheel = 1500 - (1500 * ((curr_steering_angle - 90) % 90))
-        left_wheel = 1500
+        right_wheel = _SPEED - (_SPEED * ((curr_steering_angle - 90) / 90))
+        left_wheel = _SPEED
     else :
-        left_wheel = 1500 * (curr_steering_angle / 90)
-        right_wheel = 1500
+        if curr_steering_angle == -90:
+            left_wheel = 0
+            right_wheel = 0
+        else:
+            left_wheel = _SPEED * (curr_steering_angle / 90)
+            right_wheel = _SPEED
 
-    return left_wheel, right_wheel
+    return round(left_wheel), round(right_wheel)
     
 ############################
 # Utility Functions

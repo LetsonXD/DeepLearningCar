@@ -1,11 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Form implementation generated from reading ui file 'C:\Users\Freenove\Desktop\树莓派四轮车项目\四轮车（python3+pyqt5）代码\server_ui.ui'
-#
-# Created by: PyQt5 UI code generator 5.11.3
-#
-# WARNING! All changes made in this file will be lost!
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 class Ui_server_ui(object):
@@ -117,7 +109,7 @@ class Ui_server_ui(object):
         server_ui.setWindowTitle(_translate("server_ui", "Form"))
         self.label.setText(_translate("server_ui", "Server Off"))
         self.Button_Server.setText(_translate("server_ui", "Off"))
-        self.label_2.setText(_translate("server_ui", "freenove"))
+        self.label_2.setText(_translate("server_ui", ""))
         self.pushButton_Close.setText(_translate("server_ui", "×"))
         self.pushButton_Min.setText(_translate("server_ui", "-"))
 

@@ -39,10 +39,8 @@ class mywindow(QMainWindow,Ui_server_ui):
             self.TCP_Server.StartTcpServer()
             self.ReadData=Thread(target=self.TCP_Server.readdata)
             self.SendVideo=Thread(target=self.TCP_Server.sendvideo)
-            self.power=Thread(target=self.TCP_Server.Power)
             self.SendVideo.start()
             self.ReadData.start()
-            self.power.start()
             if self.user_ui:
                 self.label.setText("Server On")
                 self.Button_Server.setText("Off")
@@ -76,7 +74,6 @@ class mywindow(QMainWindow,Ui_server_ui):
         try:
            stop_thread(self.SendVideo)
            stop_thread(self.ReadData)
-           stop_thread(self.power)
         except:
             pass
         try:
@@ -98,10 +95,8 @@ class mywindow(QMainWindow,Ui_server_ui):
             self.TCP_Server.StartTcpServer()
             self.SendVideo=Thread(target=self.TCP_Server.sendvideo)
             self.ReadData=Thread(target=self.TCP_Server.readdata)
-            self.power=Thread(target=self.TCP_Server.Power)
             self.SendVideo.start()
             self.ReadData.start()
-            self.power.start()
             
         elif self.label.text()=='Server On':
             self.label.setText("Server Off")
@@ -109,7 +104,6 @@ class mywindow(QMainWindow,Ui_server_ui):
             self.TCP_Server.tcp_Flag = False
             try:
                 stop_thread(self.ReadData)
-                stop_thread(self.power)
                 stop_thread(self.SendVideo)
             except:
                 pass
