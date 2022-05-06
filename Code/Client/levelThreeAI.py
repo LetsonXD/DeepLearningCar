@@ -1,53 +1,41 @@
-from re import X
 import cv2
-from Command import COMMAND as cmd
 import numpy as np
 import logging
 import math
-import datetime
-import sys
 
 _SHOW_IMAGE = True
-_SPEED = 700
-
+_IMG_ARRAY = []
 
 class levelThreeAI(object):
 
     def __init__(self):
         logging.info('Creating level three A.I...')
         self.curr_steering_angle = 90
-        self.left_wheel = _SPEED
-        self.right_wheel = _SPEED
+        self.lane_lines = ''
 
-    def follow_lane(self, frame):
-        # Main entry point of the lane follower
-        show_image("orig", frame)
+    def follow_lane(self, orig, record = False):
+        show_image("orig", orig)
+        if record:
+            _IMG_ARRAY.append(orig)
 
-        lane_lines, frame = detect_lane(frame)
-        final_frame, command = self.steer(frame, lane_lines)
+        self.lane_lines, frame = detect_lane(orig)
+        final_image = self.steer(frame, self.lane_lines)
 
-        return final_frame, command
+        return _IMG_ARRAY, self.curr_steering_angle, final_image
 
     def steer(self, frame, lane_lines):
         logging.debug('steering...')
         if len(lane_lines) == 0:
-            logging.error('No lane lines detected, nothing to do.')
+            self.curr_steering_angle = -90
             return frame
 
         new_steering_angle = compute_steering_angle(frame, lane_lines)
-        self.left_wheel, self.right_wheel = deg_to_revs(new_steering_angle)
-        direction = '#'+ str(self.left_wheel)+'#'+str(self.left_wheel)+'#'+str(self.right_wheel)+'#'+str(self.right_wheel)+'\n'
-
-        command = cmd.CMD_MOTOR + direction
+        self.curr_steering_angle = new_steering_angle
         curr_heading_image = display_heading_line(frame, new_steering_angle)
         show_image("heading", curr_heading_image)
 
-        return curr_heading_image, command
+        return curr_heading_image
 
-
-############################
-# Frame processing steps
-############################
 def detect_lane(frame):
     logging.debug('detecting lane lines...')
 
@@ -71,7 +59,7 @@ def detect_edges(frame):
     # filter for blue lane lines
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     show_image("hsv", hsv)
-    lower_blue = np.array([30, 40, 0])
+    lower_blue = np.array([60, 60, 60])
     upper_blue = np.array([150, 255, 255])
     mask = cv2.inRange(hsv, lower_blue, upper_blue)
     show_image("blue mask", mask)
@@ -192,20 +180,6 @@ def compute_steering_angle(frame, lane_lines):
 
     logging.debug('new steering angle: %s' % steering_angle)
     return steering_angle
-
-def deg_to_revs(curr_steering_angle):
-    if curr_steering_angle > 90:
-        right_wheel = _SPEED - (_SPEED * ((curr_steering_angle - 90) / 90))
-        left_wheel = _SPEED
-    else :
-        if curr_steering_angle == -90:
-            left_wheel = 0
-            right_wheel = 0
-        else:
-            left_wheel = _SPEED * (curr_steering_angle / 90)
-            right_wheel = _SPEED
-
-    return round(left_wheel), round(right_wheel)
     
 ############################
 # Utility Functions
@@ -220,7 +194,7 @@ def display_lines(frame, lines, line_color=(0, 255, 0), line_width=10):
     return line_image
 
 
-def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_width=5, ):
+def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_width=5):
     heading_image = np.zeros_like(frame)
     height, width, _ = frame.shape
 
@@ -265,39 +239,26 @@ def make_points(frame, line):
     x2 = max(-width, min(2 * width, int((y2 - intercept) / slope)))
     return [[x1, y1, x2, y2]]
 
-
-############################
-# Test Functions
-############################
-def test_photo(file):
-    land_follower = levelThreeAI()
-    frame = cv2.imread(file)
-    combo_image = land_follower.follow_lane(frame)
-    show_image('final', combo_image, True)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-
-def test_video(video_file):
+def to_video(video_file):
     lane_follower = levelThreeAI()
     cap = cv2.VideoCapture(video_file + '.avi')
 
-    # skip first second of video.
+    # skip first few seconds of video.
     for i in range(3):
         _, frame = cap.read()
 
     video_type = cv2.VideoWriter_fourcc(*'XVID')
-    video_overlay = cv2.VideoWriter("%s_overlay.avi" % (video_file), video_type, 20.0, (320, 240))
+    video_overlay = cv2.VideoWriter("images/%s_overlay.avi" % (video_file), video_type, 20.0, (400, 300))
     try:
         i = 0
         while cap.isOpened():
             _, frame = cap.read()
             print('frame %s' % i )
-            combo_image= lane_follower.follow_lane(frame)
+            _, _, combo_image= lane_follower.follow_lane(frame)
             
-            cv2.imwrite("%s_%03d_%03d.png" % (video_file, i, lane_follower.curr_steering_angle), frame)
+            cv2.imwrite("images/%s_%03d_%03d.png" % (video_file, i, lane_follower.curr_steering_angle), frame)
             
-            cv2.imwrite("%s_overlay_%03d.png" % (video_file, i), combo_image)
+            cv2.imwrite("images/%s_overlay_%03d.png" % (video_file, i), combo_image)
             video_overlay.write(combo_image)
             cv2.imshow("Road with Lane line", combo_image)
 
@@ -311,9 +272,4 @@ def test_video(video_file):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-
-    #test_video('/home/pi/DeepPiCar/driver/data/tmp/video01')
-    #test_photo('/home/pi/DeepPiCar/driver/data/video/car_video_190427_110320_073.png')
-    test_photo('/home/pi/Documents/DeepCar/DeepLearningCar/Code/Client/ai.png')
-    #test_video(sys.argv[1])
+    to_video('training')

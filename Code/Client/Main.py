@@ -1,15 +1,9 @@
-#!/usr/bin/python 
-# -*- coding: utf-8 -*-
 import numpy as np
 import cv2
-import socket
 import os
-import io
-import datetime
 import time
-import imghdr
 import sys
-from threading import Timer
+from keras.models import load_model
 from threading import Thread
 from PIL import Image
 from PIL import ImageFile
@@ -18,12 +12,14 @@ from Thread import *
 from Client_Ui import Ui_Client
 from levelThreeAI import levelThreeAI
 from Video import *
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import * 
+from PyQt5.QtGui import *
 
-ImageFile.LOAD_TRUNCATED_IMAGES=True
+# The main file used to display the U.I and all the revelvant features
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+_SPEED = 1000
 
 class mywindow(QMainWindow,Ui_Client):
     def __init__(self):
@@ -41,7 +37,10 @@ class mywindow(QMainWindow,Ui_Client):
         self.Key_A=False
         self.Key_S=False
         self.Key_D=False
+        self.ai_flag=False
+        self.record_flag = False
         self.Key_Space=False
+        self.imgArray = []
         self.setFocusPolicy(Qt.StrongFocus)
         self.label_Servo1.setText('Levels of Control')
         self.HSlider_Servo1.setMinimum(1)
@@ -52,7 +51,7 @@ class mywindow(QMainWindow,Ui_Client):
         self.label_Video.setAlignment(QtCore.Qt.AlignCenter|QtCore.Qt.AlignVCenter)
         self.label_Model.setPixmap(QPixmap('./model.jpg').scaled(113, 165, QtCore.Qt.KeepAspectRatio))
         self.level_three_ai = levelThreeAI()
-
+        self.model = load_model('Code/AIModel/b200_e300_15_b200_200_4.7e01_96.09_check.h5')
         
         self.Btn_ForWard.pressed.connect(self.on_btn_ForWard)
         self.Btn_ForWard.released.connect(self.on_btn_Stop)
@@ -68,6 +67,10 @@ class mywindow(QMainWindow,Ui_Client):
 
         self.Btn_Video.clicked.connect(self.on_btn_video)
         self.Btn_Connect.clicked.connect(self.on_btn_Connect)
+        self.Btn_Record.clicked.connect(self.on_btn_Record)
+        self.Btn_Record.hide()
+        self.Btn_levelThree.clicked.connect(self.on_btn_Three)
+        self.Btn_levelThree.hide()
         
         self.Window_Min.clicked.connect(self.windowMinimumed)
         self.Window_Close.clicked.connect(self.close)
@@ -120,6 +123,30 @@ class mywindow(QMainWindow,Ui_Client):
             self.timer.stop()
             self.Btn_Video.setText('Open Video')  
 
+    def on_btn_Three(self):
+        if self.Btn_levelThree.text() == 'Turn On A.I. Control':
+            self.ai_flag = True
+            self.Btn_levelThree.setText("Turn Off A.I. Control")
+        else:
+            self.Btn_levelThree.setText("Turn On A.I. Control")
+            self.ai_flag = False
+            self.on_btn_Stop()
+
+    def on_btn_Record(self):
+        if self.Btn_Record.text() == 'Start recording':
+            self.Btn_Record.setText('Create record')
+            self.record_flag = True
+        else:
+            if self.Btn_Record.text() == 'Create record':
+                self.Btn_Record.setText('Start recording')
+
+            self.Btn_Record.setText("Start recording")
+            video = cv2.VideoWriter('tester.avi', cv2.VideoWriter_fourcc(*'XVID'), 20.0, (400, 300))
+            for i in range(len(self.imgArray)):
+                video.write(self.imgArray[i])
+            video.release()
+            self.record_flag = False
+
     def windowMinimumed(self):
         self.showMinimized()
                             
@@ -169,7 +196,6 @@ class mywindow(QMainWindow,Ui_Client):
     def Power(self):
         while True:
             try:
-                self.TCP.sendData(cmd.CMD_POWER+self.endChar)
                 time.sleep(60)
             except:
                 break
@@ -218,31 +244,90 @@ class mywindow(QMainWindow,Ui_Client):
             if  self.is_valid_jpg('video.jpg'):
                 self.label_Video.setPixmap(QPixmap('video.jpg').scaled(661, 661, QtCore.Qt.KeepAspectRatio))
             if self.HSlider_Servo1.value() == 3:
-                frame = Image.open('ai.png')
-                frame = np.array(frame)
-                if len(frame.shape) == 3 and frame.shape[2] == 4:
-                    frame = frame[:, :, : 3]
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                if np.shape(frame) != ():
-                    image_lane, command = self.levelThreeAI(frame)
-                    cv2.imshow('header', image_lane)
-                    #self.TCP.sendData(command)
-
+                try:
+                    self.Btn_levelThree.show()
+                    self.Btn_Record.show()
+                    frame = Image.open('ai.png')
+                    frame = np.array(frame)
+                    if len(frame.shape) == 3 and frame.shape[2] == 4:
+                        frame = frame[:, :, : 3]
+                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    if np.shape(frame) != ():
+                        self.steering_angle = self.levelThreeAI(frame)
+                        left_wheel, right_wheel, left_wheel_back, right_wheel_back = self.deg_to_revs(self.steering_angle)
+                        direction = '#'+ str(left_wheel)+'#'+str(left_wheel_back)+'#'+str(right_wheel)+'#'+str(right_wheel_back)+'\n'
+                    if self.ai_flag:
+                        self.TCP.sendData(cmd.CMD_MOTOR + direction)
+                except Exception as e:
+                    print(e)
+            else:
+                self.Btn_levelThree.hide()
+            if self.HSlider_Servo1.value() == 5:
+                frame = self.my_imread('ai.png')
+                cv2.imshow('A.I. Vision', frame)
+                Y_pred = self.model.predict_on_batch(self.img_preprocess(frame))
+                print(str(Y_pred[0][0]))
+                left_wheel, right_wheel, left_wheel_back, right_wheel_back = self.deg_to_revs(Y_pred[0][0])
+                direction = '#'+ str(left_wheel)+'#'+str(left_wheel_back)+'#'+str(right_wheel)+'#'+str(right_wheel_back)+'\n'
+                self.TCP.sendData(cmd.CMD_MOTOR + direction)
         except Exception as e:
             print(e)
         self.TCP.video_Flag=True
 
     def levelThreeAI(self, image):
-        image, command = self.level_three_ai.follow_lane(image)
-        return image, command
+        self.imgArray, steering_angle, _ = self.level_three_ai.follow_lane(image, self.record_flag)
+        return steering_angle
 
-    def cleanup(self):
-        self.on_btn_Stop
-        self.cap.release()
-        self.video_orig.release()
+    def deg_to_revs(self, curr_steering_angle):
+        if curr_steering_angle == -90:
+            left_wheel = 0
+            right_wheel = 0
+            left_wheel_back = 0
+            right_wheel_back = 0
+        else:
+            if curr_steering_angle > 0 and curr_steering_angle <= 45:
+                left_wheel = -_SPEED
+                right_wheel = _SPEED * 2
+                left_wheel_back = _SPEED
+                right_wheel_back = _SPEED
 
+            else:
+                if curr_steering_angle > 45 and curr_steering_angle <= 90:
+                    left_wheel = (_SPEED/45 * curr_steering_angle) - (_SPEED * 1.5)
+                    right_wheel = _SPEED/2
+                    right_wheel_back = _SPEED
+                    left_wheel_back = _SPEED
+                else:
+                    if curr_steering_angle > 90 and curr_steering_angle <= 135:
+                        left_wheel = _SPEED/2
+                        right_wheel = ((-_SPEED)/45 * curr_steering_angle) + (_SPEED * 2.5)
+                        left_wheel_back = _SPEED
+                        right_wheel_back = _SPEED
+                    else:
+                        if curr_steering_angle > 135:
+                            left_wheel = 2 * _SPEED
+                            right_wheel = -_SPEED
+                            left_wheel_back = _SPEED
+                            right_wheel_back = _SPEED
 
-        
+        return round(left_wheel), round(right_wheel), round(left_wheel_back), round(right_wheel_back)
+
+    def img_preprocess(self, image):
+        ai_array = []
+        height, _, _ = image.shape
+        image = image[int(height/2):,:,:]  
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2YUV)
+        image = cv2.GaussianBlur(image, (3,3), 0) 
+        image = cv2.resize(image, (200,66)) 
+        image = image / 255
+        ai_array.append(image)
+        imgarray = np.asarray(ai_array)
+        return imgarray
+
+    def my_imread(self, image_path):
+        image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return image
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

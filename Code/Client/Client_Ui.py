@@ -1,3 +1,6 @@
+#This File is used to generate the U.I. using PyQt5
+
+from fnmatch import translate
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 class Ui_Client(object):
@@ -179,6 +182,22 @@ class Ui_Client(object):
         self.Btn_Video.setFont(font)
         self.Btn_Video.setStyleSheet("")
         self.Btn_Video.setObjectName("Btn_Video")
+        self.Btn_levelThree = QtWidgets.QPushButton(Client)
+        self.Btn_levelThree.setGeometry(QtCore.QRect(100, 600, 150, 30))
+        font = QtGui.QFont()
+        font.setFamily("3ds")
+        font.setPointSize(10)
+        self.Btn_levelThree.setFont(font)
+        self.Btn_levelThree.setStyleSheet("")
+        self.Btn_levelThree.setObjectName("Btn_levelThree")
+        self.Btn_Record = QtWidgets.QPushButton(Client)
+        self.Btn_Record.setGeometry(QtCore.QRect(100, 650, 150, 30))
+        font = QtGui.QFont()
+        font.setFamily("3ds")
+        font.setPointSize(10)
+        self.Btn_Record.setFont(font)
+        self.Btn_Record.setStyleSheet("")
+        self.Btn_Record.setObjectName("Btn_Record")
         self.label_Video = QtWidgets.QLabel(Client)
         self.label_Video.setGeometry(QtCore.QRect(310, 70, 661, 481))
         self.label_Video.setText("")
@@ -229,13 +248,15 @@ class Ui_Client(object):
 
     def retranslateUi(self, Client):
         _translate = QtCore.QCoreApplication.translate
-        self.Btn_ForWard.setText(_translate("Client", "ForWard"))
+        self.Btn_ForWard.setText(_translate("Client", "Forward"))
         self.Btn_Turn_Left.setText(_translate("Client", "Turn Left"))
-        self.Btn_BackWard.setText(_translate("Client", "BackWard"))
+        self.Btn_BackWard.setText(_translate("Client", "Backward"))
         self.Btn_Turn_Right.setText(_translate("Client", "Turn Right"))
         self.Btn_Video.setText(_translate("Client", "Open Video"))
+        self.Btn_levelThree.setText(_translate("Client", "Turn On A.I. Control"))
+        self.Btn_Record.setText(_translate("Client","Start recording"))
         self.Window_Close.setText(_translate("Client", "x"))
-        self.IP.setText(_translate("Client", "192.168.1.151"))
+        self.IP.setText(_translate("Client", "192.168.1.123"))
         self.Btn_Connect.setText(_translate("Client", "Connect"))
         self.Window_Min.setText(_translate("Client", "-"))
         self.label_Level.setText(_translate("Client", "1"))

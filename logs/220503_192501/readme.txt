@@ -1,0 +1,8 @@
+This model has the following settings,
+batch size: 200
+epoch steps: 300
+epoch size: 10
+validation batch: 200
+validation steps: 200
+rsm: 
+rsquared: 
